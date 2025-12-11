@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chameleon Chess</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --forest: #1a3a2e;
+            --deep-green: #2d5f4c;
+            --lime: #c8e882;
+            --bright-lime: #d4ff4d;
+            --cream: #f4efe3;
+            --wood-light: #d4a574;
+            --wood-dark: #8b6f47;
+            --charcoal: #1c1c1e;
+            --highlight: #ffd700;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(165deg, var(--forest) 0%, var(--deep-green) 50%, var(--charcoal) 100%);
+            min-height: 100vh;
+            color: var(--cream);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(200, 232, 130, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(212, 255, 77, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #game-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            display: grid;
+            grid-template-columns: 1fr 600px 1fr;
+            grid-template-areas:
+                "header board sidebar"
+                "info board sidebar";
+            gap: 40px;
+            align-items: start;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @media (max-width: 1200px) {
+            #game-container {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "header"
+                    "sidebar"
+                    "board"
+                    "info";
+                justify-items: center;
+            }
+        }
+
+        header {
+            grid-area: header;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        h1 {
+            font-family: 'Crimson Pro', serif;
+            font-size: 5rem;
+            font-weight: 700;
+            line-height: 0.9;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+            color: var(--cream);
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .chameleon-icon {
+            display: inline-block;
+            font-size: 5.5rem;
+            animation: pulse 3s ease-in-out infinite;
+            filter: drop-shadow(0 4px 8px rgba(200, 232, 130, 0.3));
+        }
+
+        #subtitle {
+            font-size: 1.25rem;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--lime);
+            margin-bottom: 24px;
+            opacity: 0;
+            animation: fadeIn 0.6s ease-out 0.3s forwards;
+        }
+
+        .tagline {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.5rem;
+            font-style: italic;
+            color: var(--cream);
+            opacity: 0.7;
+            max-width: 300px;
+            line-height: 1.4;
+            margin-top: 20px;
+            opacity: 0;
+            animation: fadeIn 0.6s ease-out 0.6s forwards;
+        }
+
+        #canvas-wrapper {
+            grid-area: board;
+            position: relative;
+            width: 600px;
+            height: 600px;
+            border-radius: 12px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 12px var(--wood-dark),
+                0 0 0 16px var(--cream);
+            animation: fadeIn 0.8s ease-out 0.2s backwards;
+            transition: transform 0.3s ease;
+        }
+
+        #canvas-wrapper:hover {
+            transform: translateY(-4px);
+        }
+
+        canvas {
+            border-radius: 12px;
+            cursor: pointer;
+            display: block;
+            background: var(--cream);
+        }
+
+        #sidebar {
+            grid-area: sidebar;
+            animation: slideIn 0.6s ease-out 0.4s backwards;
+        }
+
+        #level-info {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(200, 232, 130, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        #level-info strong {
+            color: var(--bright-lime);
+            font-weight: 700;
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .level-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--lime);
+            opacity: 0.8;
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--deep-green) 0%, var(--forest) 100%);
+            border: 2px solid var(--lime);
+            color: var(--cream);
+            padding: 16px 28px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(200, 232, 130, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:hover:not(:disabled) {
+            background: linear-gradient(135deg, var(--lime) 0%, var(--bright-lime) 100%);
+            color: var(--forest);
+            border-color: var(--bright-lime);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(200, 232, 130, 0.4);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: rgba(200, 232, 130, 0.3);
+        }
+
+        button:disabled:hover {
+            transform: none;
+            background: linear-gradient(135deg, var(--deep-green) 0%, var(--forest) 100%);
+            color: var(--cream);
+        }
+
+        #info-section {
+            grid-area: info;
+            animation: slideIn 0.6s ease-out 0.5s backwards;
+        }
+
+        #info {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-left: 4px solid var(--lime);
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 58, 46, 0.97);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            flex-direction: column;
+            gap: 0;
+            z-index: 10;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #overlay.show {
+            display: flex;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        #overlay-content {
+            background: var(--cream);
+            padding: 40px;
+            border-radius: 16px;
+            color: var(--charcoal);
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            box-sizing: border-box;
+        }
+
+        #overlay-content h2 {
+            font-family: 'Crimson Pro', serif;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--forest);
+            line-height: 1.1;
+        }
+
+        #overlay-content p {
+            margin-bottom: 24px;
+            line-height: 1.7;
+            font-size: 1.1rem;
+        }
+
+        #overlay-content button {
+            margin: 8px;
+        }
+
+        .level-select {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 24px 0;
+            width: 100%;
+        }
+
+        .level-button {
+            padding: 24px;
+            font-size: 1.5rem;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .level-button.completed {
+            background: linear-gradient(135deg, var(--lime) 0%, var(--bright-lime) 100%);
+            color: var(--forest);
+            border-color: var(--bright-lime);
+        }
+
+        .level-button.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 1rem;
+            color: var(--forest);
+        }
+
+        .instructions {
+            text-align: left;
+            background: var(--forest);
+            color: var(--cream);
+            padding: 24px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 4px solid var(--lime);
+        }
+
+        .instructions h3 {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            color: var(--lime);
+        }
+
+        .instructions ul {
+            margin-left: 24px;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin: 8px 0;
+        }
+
+        .instructions strong {
+            color: var(--bright-lime);
+        }
+
+        /* Custom scrollbar for overlay */
+        #overlay-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #overlay-content::-webkit-scrollbar-track {
+            background: rgba(26, 58, 46, 0.2);
+            border-radius: 4px;
+        }
+
+        #overlay-content::-webkit-scrollbar-thumb {
+            background: var(--lime);
+            border-radius: 4px;
+        }
+
+        #overlay-content::-webkit-scrollbar-thumb:hover {
+            background: var(--bright-lime);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <h1><span class="chameleon-icon">🦎</span><br>Chameleon<br>Chess</h1>
+            <div id="subtitle">Master the Art of Transformation</div>
+            <p class="tagline">Adapt. Transform. Conquer.</p>
+        </header>
+
+        <div id="canvas-wrapper">
+            <canvas id="canvas" width="600" height="600"></canvas>
+            <div id="overlay">
+                <div id="overlay-content"></div>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <div id="level-info">
+                <div class="level-label">Current Level</div>
+                <strong id="current-level">1</strong>
+                <div class="level-label">Checkmate In</div>
+                <strong id="moves-left">3</strong>
+                <div class="level-label">Moves Remaining</div>
+            </div>
+            <div id="controls">
+                <button id="menu-btn">Menu</button>
+                <button id="reset-btn">Reset Level</button>
+                <button id="undo-btn">Undo Move</button>
+                <button id="help-btn">How to Play</button>
+            </div>
+        </div>
+
+        <div id="info-section">
+            <div id="info">Select your chameleon to see available moves</div>
+        </div>
+    </div>
+
+    <script>
+        // Game Constants
+        const TILE_SIZE = 75;
+        const BOARD_SIZE = 8;
+        const TILE_COLOR_1 = '#f4efe3';
+        const TILE_COLOR_2 = '#8b6f47';
+        const SELECTION_COLOR = 'rgba(200, 232, 130, 0.6)';
+        const MOVE_COLOR = 'rgba(45, 95, 76, 0.6)';
+        const CAPTURE_COLOR = 'rgba(255, 100, 100, 0.7)';
+        const ENEMY_COLOR = '#1a3a2e';
+        const PLAYER_COLOR = '#2d5f4c';
+
+        // Game State
+        let currentLevel = 0;
+        let board = null;
+        let selectedPiece = null;
+        let moveHistory = [];
+        let completedLevels = new Set();
+        let dragging = false;
+        let dragStart = null;
+        let mousePos = { x: 0, y: 0 };
+        let isEnemyTurn = false;
+        let thinking = false;
+
+        // Canvas Setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Piece Definitions
+        const PIECES = {
+            // Enemy pieces (black)
+            king: { symbol: '♚', enemy: true, value: 0 },
+            queen: { symbol: '♛', enemy: true, value: 9 },
+            rook: { symbol: '♜', enemy: true, value: 5 },
+            bishop: { symbol: '♝', enemy: true, value: 3 },
+            knight: { symbol: '♞', enemy: true, value: 3 },
+            pawn: { symbol: '♟', enemy: true, value: 1 },
+
+            // Player piece - chameleon
+            chameleon: { symbol: '🦎', enemy: false, value: 5 }
+        };
+
+        // Level Definitions
+        const LEVELS = [
+            // Level 1 - Tutorial
+            {
+                boardSize: 4,
+                pieces: [
+                    { type: 'chameleon', x: 0, y: 3, disguise: null },
+                    { type: 'king', x: 3, y: 0 },
+                    { type: 'pawn', x: 2, y: 1 }
+                ],
+                moves: 3,
+                title: "Level 1: Basic Movement",
+                description: "Move the chameleon one step at a time to checkmate the king."
+            },
+            // Level 2 - Diagonal Eat
+            {
+                boardSize: 5,
+                pieces: [
+                    { type: 'chameleon', x: 0, y: 4, disguise: null },
+                    { type: 'knight', x: 2, y: 2 },
+                    { type: 'king', x: 4, y: 0 },
+                    { type: 'pawn', x: 3, y: 1 }
+                ],
+                moves: 4,
+                title: "Level 2: Long Range Eat",
+                description: "Use the chameleon's 2-step diagonal eat to capture the knight!"
+            },
+            // Level 3 - First Transformation
+            {
+                boardSize: 6,
+                pieces: [
+                    { type: 'chameleon', x: 0, y: 5, disguise: null },
+                    { type: 'rook', x: 3, y: 3 },
+                    { type: 'king', x: 5, y: 0 },
+                    { type: 'pawn', x: 4, y: 1 },
+                    { type: 'pawn', x: 5, y: 1 }
+                ],
+                moves: 4,
+                title: "Level 3: Transform to Win",
+                description: "Capture the rook to gain its power and reach the king."
+            },
+            // Level 4 - Complex Puzzle
+            {
+                boardSize: 6,
+                pieces: [
+                    { type: 'chameleon', x: 0, y: 5, disguise: null },
+                    { type: 'bishop', x: 2, y: 3 },
+                    { type: 'knight', x: 4, y: 4 },
+                    { type: 'king', x: 5, y: 0 },
+                    { type: 'pawn', x: 4, y: 1 },
+                    { type: 'pawn', x: 5, y: 1 }
+                ],
+                moves: 5,
+                title: "Level 4: Multiple Transformations",
+                description: "You'll need to transform multiple times to reach checkmate."
+            },
+            // Level 5 - Master Level
+            {
+                boardSize: 8,
+                pieces: [
+                    { type: 'chameleon', x: 0, y: 7, disguise: null },
+                    { type: 'rook', x: 2, y: 5 },
+                    { type: 'bishop', x: 5, y: 4 },
+                    { type: 'knight', x: 6, y: 6 },
+                    { type: 'king', x: 7, y: 0 },
+                    { type: 'pawn', x: 6, y: 1 },
+                    { type: 'pawn', x: 7, y: 1 }
+                ],
+                moves: 6,
+                title: "Level 5: Master of Disguise",
+                description: "The ultimate chameleon challenge!"
+            }
+        ];
+
+        // Piece Movement Logic
+        function getChameleonMoves(piece, pieces, boardSize) {
+            const moves = [];
+            const { x, y } = piece;
+
+            // If disguised, use the disguised piece's movement
+            // But keep the chameleon's identity as a player piece
+            if (piece.disguise) {
+                return getPieceMoves({ type: piece.disguise, x, y, isChameleonDisguise: true }, pieces, boardSize);
+            }
+
+            // Regular 1-step movement (like king) in all 8 directions
+            const directions = [
+                [-1, -1], [0, -1], [1, -1],
+                [-1, 0],           [1, 0],
+                [-1, 1],  [0, 1],  [1, 1]
+            ];
+
+            for (const [dx, dy] of directions) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (isValidPosition(nx, ny, boardSize)) {
+                    const targetPiece = getPieceAt(nx, ny, pieces);
+                    if (!targetPiece || PIECES[targetPiece.type].enemy) {
+                        moves.push({ x: nx, y: ny, capture: !!targetPiece });
+                    }
+                }
+            }
+
+            // Special 2-step diagonal eat (captures without moving)
+            const diagonals = [[-2, -2], [2, -2], [-2, 2], [2, 2]];
+            for (const [dx, dy] of diagonals) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (isValidPosition(nx, ny, boardSize)) {
+                    const targetPiece = getPieceAt(nx, ny, pieces);
+                    if (targetPiece && PIECES[targetPiece.type].enemy) {
+                        moves.push({ x: nx, y: ny, capture: true, specialEat: true });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getPawnMoves(piece, pieces, boardSize) {
+            const moves = [];
+            const { x, y } = piece;
+
+            // Determine if this is a player piece or enemy piece
+            // For chameleon disguised as pawn, it's still a player piece
+            const isEnemy = piece.isChameleonDisguise ? false : PIECES[piece.type].enemy;
+
+            // Enemy pawns move down (towards higher y), player pawns move up (towards lower y)
+            const direction = isEnemy ? 1 : -1;
+            const startRow = isEnemy ? 1 : (boardSize - 2);
+
+            // Pawns move forward one square
+            if (isValidPosition(x, y + direction, boardSize) && !getPieceAt(x, y + direction, pieces)) {
+                moves.push({ x, y: y + direction, capture: false });
+            }
+
+            // Starting position double move
+            if (y === startRow && !getPieceAt(x, y + direction, pieces) && !getPieceAt(x, y + 2 * direction, pieces)) {
+                moves.push({ x, y: y + 2 * direction, capture: false });
+            }
+
+            // Diagonal captures
+            for (const dx of [-1, 1]) {
+                const nx = x + dx;
+                const ny = y + direction;
+                if (isValidPosition(nx, ny, boardSize)) {
+                    const targetPiece = getPieceAt(nx, ny, pieces);
+                    // Can capture pieces of opposite color
+                    if (targetPiece && PIECES[targetPiece.type].enemy !== isEnemy) {
+                        moves.push({ x: nx, y: ny, capture: true });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getKnightMoves(piece, pieces, boardSize) {
+            const moves = [];
+            const { x, y } = piece;
+            const jumps = [
+                [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                [1, -2], [1, 2], [2, -1], [2, 1]
+            ];
+
+            const isEnemy = piece.isChameleonDisguise ? false : PIECES[piece.type].enemy;
+
+            for (const [dx, dy] of jumps) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (isValidPosition(nx, ny, boardSize)) {
+                    const targetPiece = getPieceAt(nx, ny, pieces);
+                    if (!targetPiece || PIECES[targetPiece.type].enemy !== isEnemy) {
+                        moves.push({ x: nx, y: ny, capture: !!targetPiece });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getSlidingMoves(piece, pieces, boardSize, directions) {
+            const moves = [];
+            const { x, y } = piece;
+
+            const isEnemy = piece.isChameleonDisguise ? false : PIECES[piece.type].enemy;
+
+            for (const [dx, dy] of directions) {
+                let nx = x + dx;
+                let ny = y + dy;
+
+                while (isValidPosition(nx, ny, boardSize)) {
+                    const targetPiece = getPieceAt(nx, ny, pieces);
+                    if (targetPiece) {
+                        if (PIECES[targetPiece.type].enemy !== isEnemy) {
+                            moves.push({ x: nx, y: ny, capture: true });
+                        }
+                        break;
+                    }
+                    moves.push({ x: nx, y: ny, capture: false });
+                    nx += dx;
+                    ny += dy;
+                }
+            }
+
+            return moves;
+        }
+
+        function getBishopMoves(piece, pieces, boardSize) {
+            return getSlidingMoves(piece, pieces, boardSize, [[-1, -1], [1, -1], [-1, 1], [1, 1]]);
+        }
+
+        function getRookMoves(piece, pieces, boardSize) {
+            return getSlidingMoves(piece, pieces, boardSize, [[-1, 0], [1, 0], [0, -1], [0, 1]]);
+        }
+
+        function getQueenMoves(piece, pieces, boardSize) {
+            return [...getRookMoves(piece, pieces, boardSize), ...getBishopMoves(piece, pieces, boardSize)];
+        }
+
+        function getKingMoves(piece, pieces, boardSize) {
+            const moves = [];
+            const { x, y } = piece;
+            const directions = [
+                [-1, -1], [0, -1], [1, -1],
+                [-1, 0],           [1, 0],
+                [-1, 1],  [0, 1],  [1, 1]
+            ];
+
+            const isEnemy = piece.isChameleonDisguise ? false : PIECES[piece.type].enemy;
+
+            for (const [dx, dy] of directions) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (isValidPosition(nx, ny, boardSize)) {
+                    const targetPiece = getPieceAt(nx, ny, pieces);
+                    if (!targetPiece || PIECES[targetPiece.type].enemy !== isEnemy) {
+                        moves.push({ x: nx, y: ny, capture: !!targetPiece });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function getPieceMoves(piece, pieces, boardSize) {
+            const type = piece.type === 'chameleon' ? (piece.disguise || 'chameleon') : piece.type;
+
+            if (piece.type === 'chameleon') {
+                return getChameleonMoves(piece, pieces, boardSize);
+            }
+
+            switch (type) {
+                case 'pawn': return getPawnMoves(piece, pieces, boardSize);
+                case 'knight': return getKnightMoves(piece, pieces, boardSize);
+                case 'bishop': return getBishopMoves(piece, pieces, boardSize);
+                case 'rook': return getRookMoves(piece, pieces, boardSize);
+                case 'queen': return getQueenMoves(piece, pieces, boardSize);
+                case 'king': return getKingMoves(piece, pieces, boardSize);
+                default: return [];
+            }
+        }
+
+        // Helper Functions
+        function isValidPosition(x, y, boardSize) {
+            return x >= 0 && x < boardSize && y >= 0 && y < boardSize;
+        }
+
+        function getPieceAt(x, y, pieces) {
+            return pieces.find(p => p.x === x && p.y === y);
+        }
+
+        function isKingInCheck(pieces, boardSize) {
+            const king = pieces.find(p => p.type === 'king');
+            if (!king) return true; // King captured = checkmate
+
+            // Check if any player piece can capture the king
+            for (const piece of pieces) {
+                if (!PIECES[piece.type].enemy) {
+                    const moves = getPieceMoves(piece, pieces, boardSize);
+                    if (moves.some(m => m.x === king.x && m.y === king.y)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function isCheckmate(pieces, boardSize) {
+            if (!isKingInCheck(pieces, boardSize)) return false;
+
+            // Check if king has any legal moves
+            const king = pieces.find(p => p.type === 'king');
+            if (!king) return true;
+
+            const kingMoves = getKingMoves(king, pieces, boardSize);
+
+            // Try each king move and see if it escapes check
+            for (const move of kingMoves) {
+                const testPieces = JSON.parse(JSON.stringify(pieces));
+                const testKing = testPieces.find(p => p.type === 'king');
+                const captured = testPieces.find(p => p.x === move.x && p.y === move.y);
+
+                if (captured) {
+                    testPieces.splice(testPieces.indexOf(captured), 1);
+                }
+                testKing.x = move.x;
+                testKing.y = move.y;
+
+                if (!isKingInCheck(testPieces, boardSize)) {
+                    return false; // King can escape
+                }
+            }
+
+            return true; // No escape = checkmate
+        }
+
+        // AI Logic
+        function getAllEnemyMoves(pieces, boardSize) {
+            const enemyMoves = [];
+            for (const piece of pieces) {
+                if (PIECES[piece.type].enemy) {
+                    const moves = getPieceMoves(piece, pieces, boardSize);
+                    for (const move of moves) {
+                        enemyMoves.push({ piece, move });
+                    }
+                }
+            }
+            return enemyMoves;
+        }
+
+        function evaluateBoard(pieces) {
+            // Evaluate board position (higher is better for enemy)
+            let score = 0;
+
+            for (const piece of pieces) {
+                const value = PIECES[piece.type].value;
+                if (PIECES[piece.type].enemy) {
+                    score += value;
+                } else {
+                    score -= value;
+                }
+            }
+
+            return score;
+        }
+
+        function minimax(pieces, boardSize, depth, isMaximizing, alpha = -Infinity, beta = Infinity) {
+            // Check terminal conditions
+            const playerKing = pieces.find(p => p.type === 'king');
+            const chameleon = pieces.find(p => p.type === 'chameleon');
+
+            if (!playerKing) return { score: 1000 }; // Enemy wins
+            if (!chameleon) return { score: -1000 }; // Player wins
+            if (depth === 0) return { score: evaluateBoard(pieces) };
+
+            if (isMaximizing) {
+                // Enemy turn
+                let bestMove = null;
+                let maxScore = -Infinity;
+                const enemyMoves = getAllEnemyMoves(pieces, boardSize);
+
+                if (enemyMoves.length === 0) {
+                    // No moves available
+                    if (isKingInCheck(pieces, boardSize)) {
+                        return { score: -1000 }; // Checkmate for player
+                    }
+                    return { score: 0 }; // Stalemate
+                }
+
+                for (const {piece, move} of enemyMoves) {
+                    // Simulate move
+                    const testPieces = JSON.parse(JSON.stringify(pieces));
+                    const testPiece = testPieces.find(p => p.x === piece.x && p.y === piece.y && p.type === piece.type);
+                    const captured = testPieces.find(p => p.x === move.x && p.y === move.y);
+
+                    if (captured) {
+                        testPieces.splice(testPieces.indexOf(captured), 1);
+                    }
+                    testPiece.x = move.x;
+                    testPiece.y = move.y;
+
+                    const result = minimax(testPieces, boardSize, depth - 1, false, alpha, beta);
+
+                    if (result.score > maxScore) {
+                        maxScore = result.score;
+                        bestMove = { piece, move };
+                    }
+
+                    alpha = Math.max(alpha, maxScore);
+                    if (beta <= alpha) break; // Alpha-beta pruning
+                }
+
+                return { score: maxScore, move: bestMove };
+            } else {
+                // Player turn (chameleon)
+                let minScore = Infinity;
+                const chameleonMoves = getPieceMoves(chameleon, pieces, boardSize);
+
+                if (chameleonMoves.length === 0) {
+                    return { score: evaluateBoard(pieces) };
+                }
+
+                for (const move of chameleonMoves) {
+                    // Simulate move
+                    const testPieces = JSON.parse(JSON.stringify(pieces));
+                    const testChameleon = testPieces.find(p => p.type === 'chameleon');
+                    const captured = testPieces.find(p => p.x === move.x && p.y === move.y);
+
+                    if (captured) {
+                        testPieces.splice(testPieces.indexOf(captured), 1);
+                        if (testChameleon.type === 'chameleon') {
+                            testChameleon.disguise = captured.type;
+                        }
+                    }
+
+                    if (!move.specialEat) {
+                        testChameleon.x = move.x;
+                        testChameleon.y = move.y;
+                    }
+
+                    const result = minimax(testPieces, boardSize, depth - 1, true, alpha, beta);
+                    minScore = Math.min(minScore, result.score);
+
+                    beta = Math.min(beta, minScore);
+                    if (beta <= alpha) break; // Alpha-beta pruning
+                }
+
+                return { score: minScore };
+            }
+        }
+
+        function smartAI(pieces, boardSize) {
+            // Smart AI: Use minimax with alpha-beta pruning
+            const depth = boardSize <= 5 ? 3 : 2; // Adjust depth based on board size
+            const result = minimax(pieces, boardSize, depth, true);
+            return result.move;
+        }
+
+        function enemyMove() {
+            if (!isEnemyTurn || thinking) return;
+
+            thinking = true;
+            isEnemyTurn = true;
+
+            // Show thinking state
+            setTimeout(() => {
+                if (thinking) {
+                    document.getElementById('info').textContent = 'Enemy is thinking...';
+                }
+            }, 100);
+
+            // Calculate move (with delay for UX)
+            setTimeout(() => {
+                const enemyMoveData = smartAI(board.pieces, board.size);
+
+                if (!enemyMoveData) {
+                    // No moves available - player wins
+                    thinking = false;
+                    isEnemyTurn = false;
+                    if (isKingInCheck(board.pieces, board.size)) {
+                        winLevel();
+                    }
+                    return;
+                }
+
+                const { piece, move } = enemyMoveData;
+
+                // Execute enemy move
+                const actualPiece = board.pieces.find(p =>
+                    p.x === piece.x && p.y === piece.y && p.type === piece.type
+                );
+
+                if (actualPiece) {
+                    const captured = getPieceAt(move.x, move.y, board.pieces);
+
+                    if (captured) {
+                        board.pieces.splice(board.pieces.indexOf(captured), 1);
+                        playSound('capture');
+                    } else {
+                        playSound('move');
+                    }
+
+                    actualPiece.x = move.x;
+                    actualPiece.y = move.y;
+                }
+
+                thinking = false;
+                isEnemyTurn = false;
+
+                draw();
+                updateUI();
+
+                // Check if player lost
+                setTimeout(() => {
+                    const chameleon = board.pieces.find(p => p.type === 'chameleon');
+                    if (!chameleon) {
+                        loseLevel("Your chameleon was captured!");
+                    }
+                }, 300);
+            }, 800);
+        }
+
+        // Game Logic
+        function loadLevel(levelIndex) {
+            currentLevel = levelIndex;
+            const level = LEVELS[levelIndex];
+
+            board = {
+                size: level.boardSize,
+                pieces: JSON.parse(JSON.stringify(level.pieces)),
+                maxMoves: level.moves,
+                moveCount: 0
+            };
+
+            moveHistory = [];
+            selectedPiece = null;
+            isEnemyTurn = false;
+            thinking = false;
+
+            updateUI();
+            hideOverlay();
+            playSound('click');
+            draw();
+        }
+
+        function movePiece(piece, toX, toY, isSpecialEat = false) {
+            // Save state for undo
+            const state = {
+                pieces: JSON.parse(JSON.stringify(board.pieces)),
+                moveCount: board.moveCount
+            };
+            moveHistory.push(state);
+
+            // Check for capture
+            const captured = getPieceAt(toX, toY, board.pieces);
+
+            if (captured) {
+                // Remove captured piece
+                board.pieces.splice(board.pieces.indexOf(captured), 1);
+
+                // If chameleon captured something, transform
+                if (piece.type === 'chameleon') {
+                    piece.disguise = captured.type;
+                }
+
+                playSound('capture');
+            } else {
+                playSound('move');
+            }
+
+            // Move the piece (unless it's a special eat - chameleon stays in place)
+            if (!isSpecialEat) {
+                piece.x = toX;
+                piece.y = toY;
+            }
+            board.moveCount++;
+
+            selectedPiece = null;
+            updateUI();
+            draw();
+
+            // Check win/lose conditions, then trigger enemy move
+            setTimeout(() => {
+                if (isCheckmate(board.pieces, board.size)) {
+                    winLevel();
+                } else if (board.moveCount >= board.maxMoves) {
+                    loseLevel("Out of moves!");
+                } else {
+                    // Trigger enemy move
+                    isEnemyTurn = true;
+                    enemyMove();
+                }
+            }, 300);
+        }
+
+        function undoMove() {
+            if (moveHistory.length === 0 || isEnemyTurn || thinking) return;
+
+            const state = moveHistory.pop();
+            board.pieces = state.pieces;
+            board.moveCount = state.moveCount;
+            selectedPiece = null;
+            isEnemyTurn = false;
+            thinking = false;
+
+            playSound('click');
+            updateUI();
+            draw();
+        }
+
+        function resetLevel() {
+            loadLevel(currentLevel);
+        }
+
+        function winLevel() {
+            completedLevels.add(currentLevel);
+            playSound('win');
+
+            showOverlay(`
+                <h2>🏆 Victory!</h2>
+                <p>You've mastered the chameleon's abilities and achieved checkmate!</p>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="showMenu()">Menu</button>
+                    ${currentLevel < LEVELS.length - 1 ?
+                        '<button onclick="loadLevel(' + (currentLevel + 1) + ')">Next Level</button>' :
+                        '<button onclick="showMenu()">Complete</button>'}
+                </div>
+            `);
+        }
+
+        function loseLevel(reason) {
+            playSound('lose');
+            showOverlay(`
+                <h2>Defeated</h2>
+                <p>${reason}</p>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="resetLevel()">Try Again</button>
+                    <button onclick="showMenu()">Menu</button>
+                </div>
+            `);
+        }
+
+        function showMenu() {
+            const levelButtons = LEVELS.map((level, i) => {
+                const completed = completedLevels.has(i);
+                return `<button class="level-button ${completed ? 'completed' : ''}"
+                               onclick="loadLevel(${i})">
+                    ${i + 1}
+                </button>`;
+            }).join('');
+
+            showOverlay(`
+                <h2>Select Level</h2>
+                <p>Choose your challenge</p>
+                <div class="level-select">
+                    ${levelButtons}
+                </div>
+                <button onclick="showHelp()">How to Play</button>
+            `);
+        }
+
+        function showHelp() {
+            showOverlay(`
+                <h2>How to Play</h2>
+                <div class="instructions">
+                    <h3>🦎 The Chameleon</h3>
+                    <ul>
+                        <li><strong>Move:</strong> One step in any direction (like a king)</li>
+                        <li><strong>Special Eat:</strong> Jump 2 steps diagonally to capture (without moving)</li>
+                        <li><strong>Transform:</strong> After capturing, becomes that piece!</li>
+                        <li><strong>Eyes:</strong> Look for the big eyes to spot the chameleon</li>
+                    </ul>
+                    <h3>🎯 Goal</h3>
+                    <ul>
+                        <li>Checkmate the enemy king within the move limit</li>
+                        <li>After you move, the enemy pieces will respond strategically!</li>
+                        <li>Click/tap pieces to select them</li>
+                        <li>Click highlighted squares to move</li>
+                        <li>Plan your transformations carefully!</li>
+                    </ul>
+                </div>
+                <button onclick="showMenu()">Back to Menu</button>
+            `);
+        }
+
+        function updateUI() {
+            document.getElementById('current-level').textContent = currentLevel + 1;
+            document.getElementById('moves-left').textContent = board.maxMoves - board.moveCount;
+            document.getElementById('undo-btn').disabled = moveHistory.length === 0;
+
+            if (selectedPiece) {
+                const piece = PIECES[selectedPiece.type];
+                const disguise = selectedPiece.disguise ? ` (as ${selectedPiece.disguise})` : '';
+                document.getElementById('info').textContent = `Chameleon selected${disguise} • Click a highlighted square to move`;
+            } else if (thinking) {
+                document.getElementById('info').textContent = 'Enemy is thinking...';
+            } else {
+                document.getElementById('info').textContent = 'Select your chameleon to see available moves';
+            }
+        }
+
+        function showOverlay(html) {
+            document.getElementById('overlay-content').innerHTML = html;
+            document.getElementById('overlay').classList.add('show');
+        }
+
+        function hideOverlay() {
+            document.getElementById('overlay').classList.remove('show');
+        }
+
+        // Sound Effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sounds = {};
+
+        function loadSound(name, url) {
+            fetch(url)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                .then(audioBuffer => {
+                    sounds[name] = audioBuffer;
+                })
+                .catch(() => {
+                    // If sound loading fails, use simple beep as fallback
+                    sounds[name] = null;
+                });
+        }
+
+        // Load all sounds
+        loadSound('move', 'sounds/click.ogg');
+        loadSound('capture', 'sounds/eat.ogg');
+        loadSound('win', 'sounds/win.ogg');
+        loadSound('lose', 'sounds/lose.ogg');
+        loadSound('click', 'sounds/click.ogg');
+
+        function playSound(type) {
+            const buffer = sounds[type];
+
+            if (buffer) {
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioContext.destination);
+                source.start(0);
+            } else {
+                // Fallback to simple beep if sound not loaded
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                const freq = {
+                    'move': 440,
+                    'capture': 330,
+                    'win': 523,
+                    'lose': 220,
+                    'click': 880
+                }[type] || 440;
+
+                oscillator.frequency.value = freq;
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            }
+        }
+
+        // Drawing Functions
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const size = board.size;
+            const tileSize = Math.min(canvas.width / size, canvas.height / size);
+            const offsetX = (canvas.width - size * tileSize) / 2;
+            const offsetY = (canvas.height - size * tileSize) / 2;
+
+            // Draw board
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    ctx.fillStyle = (x + y) % 2 === 0 ? TILE_COLOR_1 : TILE_COLOR_2;
+                    ctx.fillRect(offsetX + x * tileSize, offsetY + y * tileSize, tileSize, tileSize);
+                }
+            }
+
+            // Draw selection and valid moves
+            if (selectedPiece && !dragging) {
+                ctx.fillStyle = SELECTION_COLOR;
+                ctx.fillRect(
+                    offsetX + selectedPiece.x * tileSize,
+                    offsetY + selectedPiece.y * tileSize,
+                    tileSize,
+                    tileSize
+                );
+
+                const moves = getPieceMoves(selectedPiece, board.pieces, board.size);
+                for (const move of moves) {
+                    ctx.fillStyle = move.capture ? CAPTURE_COLOR : MOVE_COLOR;
+                    ctx.beginPath();
+                    ctx.arc(
+                        offsetX + move.x * tileSize + tileSize / 2,
+                        offsetY + move.y * tileSize + tileSize / 2,
+                        tileSize / 6,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+            }
+
+            // Draw pieces
+            for (const piece of board.pieces) {
+                if (dragging && piece === selectedPiece) continue;
+
+                const x = offsetX + piece.x * tileSize + tileSize / 2;
+                const y = offsetY + piece.y * tileSize + tileSize / 2;
+
+                drawPiece(piece, x, y, tileSize);
+            }
+
+            // Draw dragged piece
+            if (dragging && selectedPiece) {
+                drawPiece(selectedPiece, mousePos.x, mousePos.y, tileSize);
+            }
+        }
+
+        function drawPiece(piece, x, y, tileSize) {
+            const isChameleon = piece.type === 'chameleon';
+            const displayType = isChameleon && piece.disguise ? piece.disguise : piece.type;
+            const pieceInfo = PIECES[displayType];
+
+            // Draw piece symbol
+            // Use the actual piece's color (not the disguised piece's color)
+            const actualPieceInfo = PIECES[piece.type];
+            ctx.font = `${tileSize * 0.6}px Arial`;
+            ctx.fillStyle = actualPieceInfo.enemy ? ENEMY_COLOR : PLAYER_COLOR;
+            ctx.fillText(pieceInfo.symbol, x, y);
+
+            // Draw chameleon eyes if it's a chameleon (even when disguised)
+            if (isChameleon) {
+                const eyeSize = tileSize * 0.08;
+                const eyeOffset = tileSize * 0.15;
+
+                // Left eye
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x - eyeOffset, y - eyeOffset, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(x - eyeOffset, y - eyeOffset, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Right eye
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x + eyeOffset, y - eyeOffset, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(x + eyeOffset, y - eyeOffset, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function getTilePosition(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            const size = board.size;
+            const tileSize = Math.min(canvas.width / size, canvas.height / size);
+            const offsetX = (canvas.width - size * tileSize) / 2;
+            const offsetY = (canvas.height - size * tileSize) / 2;
+
+            const tileX = Math.floor((x - offsetX) / tileSize);
+            const tileY = Math.floor((y - offsetY) / tileSize);
+
+            if (tileX >= 0 && tileX < size && tileY >= 0 && tileY < size) {
+                return { x: tileX, y: tileY };
+            }
+            return null;
+        }
+
+        // Event Handlers
+        canvas.addEventListener('pointerdown', (e) => {
+            if (isEnemyTurn || thinking) return; // Prevent moves during enemy turn
+
+            const pos = getTilePosition(e.clientX, e.clientY);
+            if (!pos) return;
+
+            const piece = getPieceAt(pos.x, pos.y, board.pieces);
+
+            if (piece && !PIECES[piece.type].enemy) {
+                selectedPiece = piece;
+                dragStart = { x: e.clientX, y: e.clientY };
+                updateUI();
+                draw();
+            }
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (selectedPiece && dragStart) {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                    dragging = true;
+                    const rect = canvas.getBoundingClientRect();
+                    mousePos = {
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    };
+                    draw();
+                }
+            }
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            if (isEnemyTurn || thinking) {
+                dragging = false;
+                dragStart = null;
+                return;
+            }
+
+            const pos = getTilePosition(e.clientX, e.clientY);
+
+            if (selectedPiece && pos) {
+                const moves = getPieceMoves(selectedPiece, board.pieces, board.size);
+                const validMove = moves.find(m => m.x === pos.x && m.y === pos.y);
+
+                if (validMove) {
+                    movePiece(selectedPiece, pos.x, pos.y, validMove.specialEat || false);
+                } else if (!dragging) {
+                    // Clicking on another piece or empty square
+                    const piece = getPieceAt(pos.x, pos.y, board.pieces);
+                    if (piece && !PIECES[piece.type].enemy) {
+                        selectedPiece = piece;
+                    } else {
+                        selectedPiece = null;
+                    }
+                    updateUI();
+                    draw();
+                }
+            }
+
+            dragging = false;
+            dragStart = null;
+        });
+
+        // Button Events
+        document.getElementById('menu-btn').addEventListener('click', showMenu);
+        document.getElementById('reset-btn').addEventListener('click', resetLevel);
+        document.getElementById('undo-btn').addEventListener('click', undoMove);
+        document.getElementById('help-btn').addEventListener('click', showHelp);
+
+        // Initialize
+        showMenu();
+    </script>
+</body>
+</html>
