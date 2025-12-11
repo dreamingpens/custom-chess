@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chameleon Chess - Puzzle Creator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --forest: #1a3a2e;
+            --deep-green: #2d5f4c;
+            --lime: #c8e882;
+            --bright-lime: #d4ff4d;
+            --cream: #f4efe3;
+            --wood-light: #d4a574;
+            --wood-dark: #8b6f47;
+            --charcoal: #1c1c1e;
+            --highlight: #ffd700;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(165deg, var(--forest) 0%, var(--deep-green) 50%, var(--charcoal) 100%);
+            min-height: 100vh;
+            color: var(--cream);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(200, 232, 130, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(212, 255, 77, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #app-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-family: 'Crimson Pro', serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--cream);
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--lime);
+            opacity: 0.8;
+        }
+
+        #editor-container {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            gap: 30px;
+            align-items: start;
+        }
+
+        @media (max-width: 1200px) {
+            #editor-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(200, 232, 130, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .panel h2 {
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.75rem;
+            color: var(--bright-lime);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--lime);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--deep-green);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--cream);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--lime);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            margin: 0 auto;
+            border-radius: 12px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 12px var(--wood-dark),
+                0 0 0 16px var(--cream);
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        #canvas-container {
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        canvas {
+            border-radius: 12px;
+            cursor: crosshair;
+            display: block;
+            background: var(--cream);
+            max-width: 100%;
+            height: auto;
+        }
+
+        .piece-palette {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .piece-btn {
+            padding: 20px;
+            border: 2px solid var(--deep-green);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--cream);
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .piece-btn:hover {
+            background: rgba(200, 232, 130, 0.1);
+            border-color: var(--lime);
+            transform: translateY(-2px);
+        }
+
+        .piece-btn.selected {
+            background: var(--lime);
+            border-color: var(--bright-lime);
+            color: var(--forest);
+        }
+
+        .piece-name {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--deep-green) 0%, var(--forest) 100%);
+            border: 2px solid var(--lime);
+            color: var(--cream);
+            padding: 16px 28px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        button:hover:not(:disabled) {
+            background: linear-gradient(135deg, var(--lime) 0%, var(--bright-lime) 100%);
+            color: var(--forest);
+            border-color: var(--bright-lime);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(200, 232, 130, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+            border-color: #ef5350;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+            border-color: #ff6659;
+        }
+
+        #info-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 4px solid var(--lime);
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .preview-box {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .preview-box pre {
+            color: var(--bright-lime);
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--lime);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bright-lime);
+        }
+
+        .instructions {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .instructions strong {
+            color: var(--bright-lime);
+        }
+
+        .instructions code {
+            background: rgba(200, 232, 130, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: var(--bright-lime);
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <h1>🦎 Puzzle Creator</h1>
+            <div class="subtitle">Design Custom Chameleon Chess Puzzles</div>
+        </header>
+
+        <div id="editor-container">
+            <!-- Left Panel: Piece Palette & Configuration -->
+            <div class="panel">
+                <h2>Configuration</h2>
+
+                <div class="form-group">
+                    <label for="board-width">Board Width</label>
+                    <input type="number" id="board-width" min="3" max="12" value="8">
+                </div>
+
+                <div class="form-group">
+                    <label for="board-height">Board Height</label>
+                    <input type="number" id="board-height" min="3" max="12" value="8">
+                </div>
+
+                <h2 style="margin-top: 30px;">Piece Palette</h2>
+
+                <div class="piece-palette">
+                    <button class="piece-btn" data-piece="chameleon">
+                        <span>🦎</span>
+                        <span class="piece-name">Chameleon</span>
+                    </button>
+                    <button class="piece-btn" data-piece="king">
+                        <span>♚</span>
+                        <span class="piece-name">King</span>
+                    </button>
+                    <button class="piece-btn" data-piece="queen">
+                        <span>♛</span>
+                        <span class="piece-name">Queen</span>
+                    </button>
+                    <button class="piece-btn" data-piece="rook">
+                        <span>♜</span>
+                        <span class="piece-name">Rook</span>
+                    </button>
+                    <button class="piece-btn" data-piece="bishop">
+                        <span>♝</span>
+                        <span class="piece-name">Bishop</span>
+                    </button>
+                    <button class="piece-btn" data-piece="knight">
+                        <span>♞</span>
+                        <span class="piece-name">Knight</span>
+                    </button>
+                    <button class="piece-btn" data-piece="pawn">
+                        <span>♟</span>
+                        <span class="piece-name">Pawn</span>
+                    </button>
+                </div>
+
+                <div class="instructions">
+                    <strong>How to use:</strong><br>
+                    1. Select a piece from the palette<br>
+                    2. Click on the board to place it<br>
+                    3. Click a placed piece to remove it<br>
+                    4. Configure puzzle details<br>
+                    5. Export (downloads to ~/Downloads)<br>
+                    6. Run: <code>node move-puzzles.js [filename]</code>
+                </div>
+
+                <button id="clear-board" class="btn-danger">Clear Board</button>
+            </div>
+
+            <!-- Center: Canvas Board -->
+            <div>
+                <div id="canvas-container">
+                    <div id="canvas-wrapper">
+                        <canvas id="canvas"></canvas>
+                    </div>
+                </div>
+
+                <div id="info-box">
+                    Select a piece from the palette and click on the board to place it.
+                </div>
+            </div>
+
+            <!-- Right Panel: Puzzle Details & Export -->
+            <div class="panel">
+                <h2>Puzzle Details</h2>
+
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Pieces</div>
+                        <div class="stat-value" id="piece-count">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Board</div>
+                        <div class="stat-value" id="board-display">8×8</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="puzzle-title">Puzzle Title</label>
+                    <input type="text" id="puzzle-title" placeholder="e.g., Level 6: Advanced Strategy" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="puzzle-description">Description (Optional)</label>
+                    <textarea id="puzzle-description" placeholder="Describe the puzzle objective and strategy..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="max-moves">Max Moves</label>
+                    <input type="number" id="max-moves" min="1" max="20" value="5" required>
+                </div>
+
+                <h2 style="margin-top: 30px;">Export</h2>
+
+                <button id="export-json">Export as JSON</button>
+                <button id="copy-json">Copy JSON to Clipboard</button>
+                <button id="preview-json">Preview JSON</button>
+
+                <div class="preview-box" id="json-preview" style="display: none;">
+                    <pre id="json-content"></pre>
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(200, 232, 130, 0.2);">
+                    <button onclick="window.location.href='index.html'">Back to Game</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const TILE_SIZE = 75;  // Square tile size in pixels
+        const TILE_COLOR_1 = '#f4efe3';
+        const TILE_COLOR_2 = '#8b6f47';
+        const SELECTION_COLOR = 'rgba(200, 232, 130, 0.6)';
+        const ENEMY_COLOR = '#000000';  // Black for enemy pieces
+        const PLAYER_COLOR = '#2d5f4c';  // Green for player pieces
+
+        // Piece Definitions (matching main game)
+        const PIECES = {
+            king: { symbol: '♚', enemy: true },
+            queen: { symbol: '♛', enemy: true },
+            rook: { symbol: '♜', enemy: true },
+            bishop: { symbol: '♝', enemy: true },
+            knight: { symbol: '♞', enemy: true },
+            pawn: { symbol: '♟', enemy: true },
+            chameleon: { symbol: '🦎', enemy: false }
+        };
+
+        // State
+        let boardWidth = 8;
+        let boardHeight = 8;
+        let pieces = [];
+        let selectedPieceType = null;
+
+        // Canvas
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Initialize
+        function init() {
+            // Board size changes
+            document.getElementById('board-width').addEventListener('input', (e) => {
+                boardWidth = parseInt(e.target.value) || 8;
+                document.getElementById('board-display').textContent = `${boardWidth}×${boardHeight}`;
+                drawBoard();
+            });
+
+            document.getElementById('board-height').addEventListener('input', (e) => {
+                boardHeight = parseInt(e.target.value) || 8;
+                document.getElementById('board-display').textContent = `${boardWidth}×${boardHeight}`;
+                drawBoard();
+            });
+
+            // Piece palette buttons
+            document.querySelectorAll('.piece-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    selectedPieceType = btn.dataset.piece;
+                    document.querySelectorAll('.piece-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    updateInfo(`Click on the board to place ${selectedPieceType}`);
+                });
+            });
+
+            // Canvas click
+            canvas.addEventListener('click', handleCanvasClick);
+
+            // Clear board
+            document.getElementById('clear-board').addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear the board?')) {
+                    pieces = [];
+                    drawBoard();
+                    updateStats();
+                    updateInfo('Board cleared. Select a piece to place.');
+                }
+            });
+
+            // Export buttons
+            document.getElementById('export-json').addEventListener('click', exportJSON);
+            document.getElementById('copy-json').addEventListener('click', copyJSON);
+            document.getElementById('preview-json').addEventListener('click', previewJSON);
+
+            drawBoard();
+            updateStats();
+        }
+
+        // Drawing
+        function drawBoard() {
+            // Update canvas dimensions based on board size
+            canvas.width = boardWidth * TILE_SIZE;
+            canvas.height = boardHeight * TILE_SIZE;
+
+            // Reset context properties after canvas resize
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw board tiles
+            for (let y = 0; y < boardHeight; y++) {
+                for (let x = 0; x < boardWidth; x++) {
+                    ctx.fillStyle = (x + y) % 2 === 0 ? TILE_COLOR_1 : TILE_COLOR_2;
+                    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= boardWidth; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * TILE_SIZE, 0);
+                ctx.lineTo(i * TILE_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= boardHeight; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * TILE_SIZE);
+                ctx.lineTo(canvas.width, i * TILE_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw pieces
+            for (const piece of pieces) {
+                const x = piece.x * TILE_SIZE + TILE_SIZE / 2;
+                const y = piece.y * TILE_SIZE + TILE_SIZE / 2;
+                drawPiece(piece, x, y, TILE_SIZE);
+            }
+        }
+
+        function drawPiece(piece, x, y, tileSize) {
+            const pieceInfo = PIECES[piece.type];
+
+            // Draw piece symbol
+            ctx.font = `${tileSize * 0.6}px Arial`;
+            ctx.fillStyle = pieceInfo.enemy ? ENEMY_COLOR : PLAYER_COLOR;
+            ctx.fillText(pieceInfo.symbol, x, y);
+
+            // Draw chameleon eyes if it's a chameleon
+            if (piece.type === 'chameleon') {
+                const eyeSize = tileSize * 0.08;
+                const eyeOffset = tileSize * 0.15;
+
+                // Left eye
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x - eyeOffset, y - eyeOffset, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(x - eyeOffset, y - eyeOffset, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Right eye
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x + eyeOffset, y - eyeOffset, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(x + eyeOffset, y - eyeOffset, eyeSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Event Handlers
+        function handleCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Account for canvas scaling in CSS
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const canvasX = x * scaleX;
+            const canvasY = y * scaleY;
+
+            const tileX = Math.floor(canvasX / TILE_SIZE);
+            const tileY = Math.floor(canvasY / TILE_SIZE);
+
+            if (tileX >= 0 && tileX < boardWidth && tileY >= 0 && tileY < boardHeight) {
+                // Check if there's already a piece at this position
+                const existingPieceIndex = pieces.findIndex(p => p.x === tileX && p.y === tileY);
+
+                if (existingPieceIndex !== -1) {
+                    // Remove the piece
+                    const removedPiece = pieces[existingPieceIndex];
+                    pieces.splice(existingPieceIndex, 1);
+                    updateInfo(`Removed ${removedPiece.type} from (${tileX}, ${tileY})`);
+                } else if (selectedPieceType) {
+                    // Place the piece
+                    pieces.push({
+                        type: selectedPieceType,
+                        x: tileX,
+                        y: tileY,
+                        disguise: null
+                    });
+                    updateInfo(`Placed ${selectedPieceType} at (${tileX}, ${tileY})`);
+                }
+
+                drawBoard();
+                updateStats();
+            }
+        }
+
+        // Validation
+        function validatePuzzle() {
+            const errors = [];
+
+            // Check for at least one chameleon
+            const hasChameleon = pieces.some(p => p.type === 'chameleon');
+            if (!hasChameleon) {
+                errors.push('Puzzle must have at least one chameleon');
+            }
+
+            // Check for at least one king
+            const hasKing = pieces.some(p => p.type === 'king');
+            if (!hasKing) {
+                errors.push('Puzzle must have at least one king');
+            }
+
+            // Check puzzle details
+            const title = document.getElementById('puzzle-title').value.trim();
+            const maxMoves = parseInt(document.getElementById('max-moves').value);
+
+            if (!title) {
+                errors.push('Puzzle title is required');
+            }
+
+            // Description is optional - no validation needed
+
+            if (isNaN(maxMoves) || maxMoves < 1) {
+                errors.push('Max moves must be at least 1');
+            }
+
+            return errors;
+        }
+
+        // Generate Puzzle Data
+        function generatePuzzleData() {
+            const data = {
+                boardWidth: boardWidth,
+                boardHeight: boardHeight,
+                pieces: pieces.map(p => ({
+                    type: p.type,
+                    x: p.x,
+                    y: p.y,
+                    disguise: p.disguise
+                })),
+                moves: parseInt(document.getElementById('max-moves').value),
+                title: document.getElementById('puzzle-title').value.trim(),
+                description: document.getElementById('puzzle-description').value.trim()
+            };
+
+            // For backward compatibility with square boards
+            if (boardWidth === boardHeight) {
+                data.boardSize = boardWidth;
+            }
+
+            return data;
+        }
+
+        // Export Functions
+        async function exportJSON() {
+            const errors = validatePuzzle();
+            if (errors.length > 0) {
+                alert('Please fix the following errors:\n\n' + errors.join('\n'));
+                return;
+            }
+
+            const data = generatePuzzleData();
+            const json = JSON.stringify(data, null, 2);
+            const filename = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json';
+
+            try {
+                // Try to use File System Access API for better control
+                if ('showSaveFilePicker' in window) {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        startIn: 'downloads',
+                        types: [{
+                            description: 'JSON Files',
+                            accept: { 'application/json': ['.json'] }
+                        }]
+                    });
+
+                    const writable = await handle.createWritable();
+                    await writable.write(json);
+                    await writable.close();
+
+                    updateInfo(`Puzzle saved to puzzles/${filename}`);
+                } else {
+                    // Fallback to traditional download
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+
+                    URL.revokeObjectURL(url);
+                    updateInfo(`Downloaded ${filename} - Run: node move-puzzles.js ${filename}`);
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Export failed:', err);
+                    // Fallback to traditional download
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+
+                    URL.revokeObjectURL(url);
+                    updateInfo(`Downloaded ${filename} - Run: node move-puzzles.js ${filename}`);
+                }
+            }
+        }
+
+        function copyJSON() {
+            const errors = validatePuzzle();
+            if (errors.length > 0) {
+                alert('Please fix the following errors:\n\n' + errors.join('\n'));
+                return;
+            }
+
+            const data = generatePuzzleData();
+            const json = JSON.stringify(data, null, 2);
+
+            navigator.clipboard.writeText(json).then(() => {
+                updateInfo('JSON copied to clipboard!');
+            }).catch(err => {
+                updateInfo('Failed to copy to clipboard', true);
+            });
+        }
+
+        function previewJSON() {
+            const errors = validatePuzzle();
+            if (errors.length > 0) {
+                alert('Please fix the following errors:\n\n' + errors.join('\n'));
+                return;
+            }
+
+            const data = generatePuzzleData();
+            const json = JSON.stringify(data, null, 2);
+
+            document.getElementById('json-content').textContent = json;
+            document.getElementById('json-preview').style.display = 'block';
+            updateInfo('Preview generated below');
+        }
+
+        // UI Updates
+        function updateStats() {
+            document.getElementById('piece-count').textContent = pieces.length;
+        }
+
+        function updateInfo(message, isError = false) {
+            const infoBox = document.getElementById('info-box');
+            infoBox.textContent = message;
+            infoBox.style.borderLeftColor = isError ? '#ef5350' : 'var(--lime)';
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

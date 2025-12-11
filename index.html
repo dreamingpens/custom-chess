@@ -505,89 +505,65 @@
             chameleon: { symbol: '🦎', enemy: false, value: 5 }
         };
 
-        // Level Definitions
-        const LEVELS = [
-            // Level 1 - Tutorial
-            {
-                boardSize: 4,
-                pieces: [
-                    { type: 'chameleon', x: 0, y: 3, disguise: null },
-                    { type: 'king', x: 3, y: 0 },
-                    { type: 'pawn', x: 2, y: 1 }
-                ],
-                moves: 3,
-                title: "Level 1: Basic Movement",
-                description: "Move the chameleon one step at a time to checkmate the king."
-            },
-            // Level 2 - Diagonal Eat
-            {
-                boardSize: 5,
-                pieces: [
-                    { type: 'chameleon', x: 0, y: 4, disguise: null },
-                    { type: 'knight', x: 2, y: 2 },
-                    { type: 'king', x: 4, y: 0 },
-                    { type: 'pawn', x: 3, y: 1 }
-                ],
-                moves: 4,
-                title: "Level 2: Long Range Eat",
-                description: "Use the chameleon's 2-step diagonal eat to capture the knight!"
-            },
-            // Level 3 - First Transformation
-            {
-                boardSize: 6,
-                pieces: [
-                    { type: 'chameleon', x: 0, y: 5, disguise: null },
-                    { type: 'rook', x: 3, y: 3 },
-                    { type: 'king', x: 5, y: 0 },
-                    { type: 'pawn', x: 4, y: 1 },
-                    { type: 'pawn', x: 5, y: 1 }
-                ],
-                moves: 4,
-                title: "Level 3: Transform to Win",
-                description: "Capture the rook to gain its power and reach the king."
-            },
-            // Level 4 - Complex Puzzle
-            {
-                boardSize: 6,
-                pieces: [
-                    { type: 'chameleon', x: 0, y: 5, disguise: null },
-                    { type: 'bishop', x: 2, y: 3 },
-                    { type: 'knight', x: 4, y: 4 },
-                    { type: 'king', x: 5, y: 0 },
-                    { type: 'pawn', x: 4, y: 1 },
-                    { type: 'pawn', x: 5, y: 1 }
-                ],
-                moves: 5,
-                title: "Level 4: Multiple Transformations",
-                description: "You'll need to transform multiple times to reach checkmate."
-            },
-            // Level 5 - Master Level
-            {
-                boardSize: 8,
-                pieces: [
-                    { type: 'chameleon', x: 0, y: 7, disguise: null },
-                    { type: 'rook', x: 2, y: 5 },
-                    { type: 'bishop', x: 5, y: 4 },
-                    { type: 'knight', x: 6, y: 6 },
-                    { type: 'king', x: 7, y: 0 },
-                    { type: 'pawn', x: 6, y: 1 },
-                    { type: 'pawn', x: 7, y: 1 }
-                ],
-                moves: 6,
-                title: "Level 5: Master of Disguise",
-                description: "The ultimate chameleon challenge!"
+        // Level Definitions - Only custom puzzles from puzzles/ directory
+        const LEVELS = [];
+
+        // Custom puzzles loaded from puzzles/ directory
+        let customPuzzlesLoaded = false;
+
+        // Load custom puzzles from the puzzles directory
+        async function loadCustomPuzzles() {
+            try {
+                // Fetch the manifest file
+                const manifestResponse = await fetch('puzzles/manifest.json');
+                if (!manifestResponse.ok) {
+                    console.warn('No custom puzzles manifest found');
+                    return;
+                }
+
+                const manifest = await manifestResponse.json();
+
+                // Load each puzzle file
+                for (const puzzleFile of manifest.puzzles) {
+                    try {
+                        const puzzleResponse = await fetch(`puzzles/${puzzleFile}`);
+                        if (puzzleResponse.ok) {
+                            const puzzle = await puzzleResponse.json();
+
+                            // Convert puzzle format to level format
+                            // Support both square and non-symmetrical boards
+                            const level = {
+                                boardWidth: puzzle.boardWidth || puzzle.boardSize || 8,
+                                boardHeight: puzzle.boardHeight || puzzle.boardSize || 8,
+                                pieces: puzzle.pieces,
+                                moves: puzzle.moves,
+                                title: puzzle.title || 'Custom Puzzle',
+                                description: puzzle.description || ''
+                            };
+
+                            LEVELS.push(level);
+                            console.log(`Loaded custom puzzle: ${level.title}`);
+                        }
+                    } catch (err) {
+                        console.error(`Failed to load puzzle ${puzzleFile}:`, err);
+                    }
+                }
+
+                customPuzzlesLoaded = true;
+            } catch (err) {
+                console.error('Failed to load custom puzzles:', err);
             }
-        ];
+        }
 
         // Piece Movement Logic
-        function getChameleonMoves(piece, pieces, boardSize) {
+        function getChameleonMoves(piece, pieces, boardWidth, boardHeight) {
             const moves = [];
             const { x, y } = piece;
 
             // If disguised, use the disguised piece's movement
             // But keep the chameleon's identity as a player piece
             if (piece.disguise) {
-                return getPieceMoves({ type: piece.disguise, x, y, isChameleonDisguise: true }, pieces, boardSize);
+                return getPieceMoves({ type: piece.disguise, x, y, isChameleonDisguise: true }, pieces, boardWidth, boardHeight);
             }
 
             // Regular 1-step movement (like king) in all 8 directions
@@ -600,7 +576,7 @@
             for (const [dx, dy] of directions) {
                 const nx = x + dx;
                 const ny = y + dy;
-                if (isValidPosition(nx, ny, boardSize)) {
+                if (isValidPosition(nx, ny, boardWidth, boardHeight)) {
                     const targetPiece = getPieceAt(nx, ny, pieces);
                     if (!targetPiece || PIECES[targetPiece.type].enemy) {
                         moves.push({ x: nx, y: ny, capture: !!targetPiece });
@@ -613,7 +589,7 @@
             for (const [dx, dy] of diagonals) {
                 const nx = x + dx;
                 const ny = y + dy;
-                if (isValidPosition(nx, ny, boardSize)) {
+                if (isValidPosition(nx, ny, boardWidth, boardHeight)) {
                     const targetPiece = getPieceAt(nx, ny, pieces);
                     if (targetPiece && PIECES[targetPiece.type].enemy) {
                         moves.push({ x: nx, y: ny, capture: true, specialEat: true });
@@ -624,7 +600,7 @@
             return moves;
         }
 
-        function getPawnMoves(piece, pieces, boardSize) {
+        function getPawnMoves(piece, pieces, boardWidth, boardHeight) {
             const moves = [];
             const { x, y } = piece;
 
@@ -634,10 +610,10 @@
 
             // Enemy pawns move down (towards higher y), player pawns move up (towards lower y)
             const direction = isEnemy ? 1 : -1;
-            const startRow = isEnemy ? 1 : (boardSize - 2);
+            const startRow = isEnemy ? 1 : (boardHeight - 2);
 
             // Pawns move forward one square
-            if (isValidPosition(x, y + direction, boardSize) && !getPieceAt(x, y + direction, pieces)) {
+            if (isValidPosition(x, y + direction, boardWidth, boardHeight) && !getPieceAt(x, y + direction, pieces)) {
                 moves.push({ x, y: y + direction, capture: false });
             }
 
@@ -650,7 +626,7 @@
             for (const dx of [-1, 1]) {
                 const nx = x + dx;
                 const ny = y + direction;
-                if (isValidPosition(nx, ny, boardSize)) {
+                if (isValidPosition(nx, ny, boardWidth, boardHeight)) {
                     const targetPiece = getPieceAt(nx, ny, pieces);
                     // Can capture pieces of opposite color
                     if (targetPiece && PIECES[targetPiece.type].enemy !== isEnemy) {
@@ -662,7 +638,7 @@
             return moves;
         }
 
-        function getKnightMoves(piece, pieces, boardSize) {
+        function getKnightMoves(piece, pieces, boardWidth, boardHeight) {
             const moves = [];
             const { x, y } = piece;
             const jumps = [
@@ -675,7 +651,7 @@
             for (const [dx, dy] of jumps) {
                 const nx = x + dx;
                 const ny = y + dy;
-                if (isValidPosition(nx, ny, boardSize)) {
+                if (isValidPosition(nx, ny, boardWidth, boardHeight)) {
                     const targetPiece = getPieceAt(nx, ny, pieces);
                     if (!targetPiece || PIECES[targetPiece.type].enemy !== isEnemy) {
                         moves.push({ x: nx, y: ny, capture: !!targetPiece });
@@ -686,7 +662,7 @@
             return moves;
         }
 
-        function getSlidingMoves(piece, pieces, boardSize, directions) {
+        function getSlidingMoves(piece, pieces, boardWidth, boardHeight, directions) {
             const moves = [];
             const { x, y } = piece;
 
@@ -696,7 +672,7 @@
                 let nx = x + dx;
                 let ny = y + dy;
 
-                while (isValidPosition(nx, ny, boardSize)) {
+                while (isValidPosition(nx, ny, boardWidth, boardHeight)) {
                     const targetPiece = getPieceAt(nx, ny, pieces);
                     if (targetPiece) {
                         if (PIECES[targetPiece.type].enemy !== isEnemy) {
@@ -713,19 +689,19 @@
             return moves;
         }
 
-        function getBishopMoves(piece, pieces, boardSize) {
-            return getSlidingMoves(piece, pieces, boardSize, [[-1, -1], [1, -1], [-1, 1], [1, 1]]);
+        function getBishopMoves(piece, pieces, boardWidth, boardHeight) {
+            return getSlidingMoves(piece, pieces, boardWidth, boardHeight, [[-1, -1], [1, -1], [-1, 1], [1, 1]]);
         }
 
-        function getRookMoves(piece, pieces, boardSize) {
-            return getSlidingMoves(piece, pieces, boardSize, [[-1, 0], [1, 0], [0, -1], [0, 1]]);
+        function getRookMoves(piece, pieces, boardWidth, boardHeight) {
+            return getSlidingMoves(piece, pieces, boardWidth, boardHeight, [[-1, 0], [1, 0], [0, -1], [0, 1]]);
         }
 
-        function getQueenMoves(piece, pieces, boardSize) {
-            return [...getRookMoves(piece, pieces, boardSize), ...getBishopMoves(piece, pieces, boardSize)];
+        function getQueenMoves(piece, pieces, boardWidth, boardHeight) {
+            return [...getRookMoves(piece, pieces, boardWidth, boardHeight), ...getBishopMoves(piece, pieces, boardWidth, boardHeight)];
         }
 
-        function getKingMoves(piece, pieces, boardSize) {
+        function getKingMoves(piece, pieces, boardWidth, boardHeight) {
             const moves = [];
             const { x, y } = piece;
             const directions = [
@@ -739,7 +715,7 @@
             for (const [dx, dy] of directions) {
                 const nx = x + dx;
                 const ny = y + dy;
-                if (isValidPosition(nx, ny, boardSize)) {
+                if (isValidPosition(nx, ny, boardWidth, boardHeight)) {
                     const targetPiece = getPieceAt(nx, ny, pieces);
                     if (!targetPiece || PIECES[targetPiece.type].enemy !== isEnemy) {
                         moves.push({ x: nx, y: ny, capture: !!targetPiece });
@@ -750,41 +726,41 @@
             return moves;
         }
 
-        function getPieceMoves(piece, pieces, boardSize) {
+        function getPieceMoves(piece, pieces, boardWidth, boardHeight) {
             const type = piece.type === 'chameleon' ? (piece.disguise || 'chameleon') : piece.type;
 
             if (piece.type === 'chameleon') {
-                return getChameleonMoves(piece, pieces, boardSize);
+                return getChameleonMoves(piece, pieces, boardWidth, boardHeight);
             }
 
             switch (type) {
-                case 'pawn': return getPawnMoves(piece, pieces, boardSize);
-                case 'knight': return getKnightMoves(piece, pieces, boardSize);
-                case 'bishop': return getBishopMoves(piece, pieces, boardSize);
-                case 'rook': return getRookMoves(piece, pieces, boardSize);
-                case 'queen': return getQueenMoves(piece, pieces, boardSize);
-                case 'king': return getKingMoves(piece, pieces, boardSize);
+                case 'pawn': return getPawnMoves(piece, pieces, boardWidth, boardHeight);
+                case 'knight': return getKnightMoves(piece, pieces, boardWidth, boardHeight);
+                case 'bishop': return getBishopMoves(piece, pieces, boardWidth, boardHeight);
+                case 'rook': return getRookMoves(piece, pieces, boardWidth, boardHeight);
+                case 'queen': return getQueenMoves(piece, pieces, boardWidth, boardHeight);
+                case 'king': return getKingMoves(piece, pieces, boardWidth, boardHeight);
                 default: return [];
             }
         }
 
         // Helper Functions
-        function isValidPosition(x, y, boardSize) {
-            return x >= 0 && x < boardSize && y >= 0 && y < boardSize;
+        function isValidPosition(x, y, boardWidth, boardHeight) {
+            return x >= 0 && x < boardWidth && y >= 0 && y < boardHeight;
         }
 
         function getPieceAt(x, y, pieces) {
             return pieces.find(p => p.x === x && p.y === y);
         }
 
-        function isKingInCheck(pieces, boardSize) {
+        function isKingInCheck(pieces, boardWidth, boardHeight) {
             const king = pieces.find(p => p.type === 'king');
             if (!king) return true; // King captured = checkmate
 
             // Check if any player piece can capture the king
             for (const piece of pieces) {
                 if (!PIECES[piece.type].enemy) {
-                    const moves = getPieceMoves(piece, pieces, boardSize);
+                    const moves = getPieceMoves(piece, pieces, boardWidth, boardHeight);
                     if (moves.some(m => m.x === king.x && m.y === king.y)) {
                         return true;
                     }
@@ -793,14 +769,14 @@
             return false;
         }
 
-        function isCheckmate(pieces, boardSize) {
-            if (!isKingInCheck(pieces, boardSize)) return false;
+        function isCheckmate(pieces, boardWidth, boardHeight) {
+            if (!isKingInCheck(pieces, boardWidth, boardHeight)) return false;
 
             // Check if king has any legal moves
             const king = pieces.find(p => p.type === 'king');
             if (!king) return true;
 
-            const kingMoves = getKingMoves(king, pieces, boardSize);
+            const kingMoves = getKingMoves(king, pieces, boardWidth, boardHeight);
 
             // Try each king move and see if it escapes check
             for (const move of kingMoves) {
@@ -814,7 +790,7 @@
                 testKing.x = move.x;
                 testKing.y = move.y;
 
-                if (!isKingInCheck(testPieces, boardSize)) {
+                if (!isKingInCheck(testPieces, boardWidth, boardHeight)) {
                     return false; // King can escape
                 }
             }
@@ -822,12 +798,43 @@
             return true; // No escape = checkmate
         }
 
+        // Check if a move would leave your own king in check
+        function wouldLeaveKingInCheck(piece, toX, toY, pieces, boardWidth, boardHeight) {
+            const testPieces = JSON.parse(JSON.stringify(pieces));
+            const testPiece = testPieces.find(p => p.x === piece.x && p.y === piece.y && p.type === piece.type);
+            const captured = testPieces.find(p => p.x === toX && p.y === toY);
+
+            if (captured) {
+                testPieces.splice(testPieces.indexOf(captured), 1);
+            }
+            testPiece.x = toX;
+            testPiece.y = toY;
+
+            return isKingInCheck(testPieces, boardWidth, boardHeight);
+        }
+
+        // Get legal moves (filters out moves that would leave king in check)
+        function getLegalMoves(piece, pieces, boardWidth, boardHeight) {
+            const moves = getPieceMoves(piece, pieces, boardWidth, boardHeight);
+
+            // For enemy pieces, filter out moves that would leave enemy king in check
+            // (Player doesn't have a king, only the enemy does)
+            if (PIECES[piece.type].enemy) {
+                return moves.filter(move =>
+                    !wouldLeaveKingInCheck(piece, move.x, move.y, pieces, boardWidth, boardHeight)
+                );
+            }
+
+            // Player pieces (chameleon) don't need this check as they have no king
+            return moves;
+        }
+
         // AI Logic
-        function getAllEnemyMoves(pieces, boardSize) {
+        function getAllEnemyMoves(pieces, boardWidth, boardHeight) {
             const enemyMoves = [];
             for (const piece of pieces) {
                 if (PIECES[piece.type].enemy) {
-                    const moves = getPieceMoves(piece, pieces, boardSize);
+                    const moves = getLegalMoves(piece, pieces, boardWidth, boardHeight);
                     for (const move of moves) {
                         enemyMoves.push({ piece, move });
                     }
@@ -852,7 +859,7 @@
             return score;
         }
 
-        function minimax(pieces, boardSize, depth, isMaximizing, alpha = -Infinity, beta = Infinity) {
+        function minimax(pieces, boardWidth, boardHeight, depth, isMaximizing, alpha = -Infinity, beta = Infinity) {
             // Check terminal conditions
             const playerKing = pieces.find(p => p.type === 'king');
             const chameleon = pieces.find(p => p.type === 'chameleon');
@@ -865,11 +872,11 @@
                 // Enemy turn
                 let bestMove = null;
                 let maxScore = -Infinity;
-                const enemyMoves = getAllEnemyMoves(pieces, boardSize);
+                const enemyMoves = getAllEnemyMoves(pieces, boardWidth, boardHeight);
 
                 if (enemyMoves.length === 0) {
                     // No moves available
-                    if (isKingInCheck(pieces, boardSize)) {
+                    if (isKingInCheck(pieces, boardWidth, boardHeight)) {
                         return { score: -1000 }; // Checkmate for player
                     }
                     return { score: 0 }; // Stalemate
@@ -887,7 +894,7 @@
                     testPiece.x = move.x;
                     testPiece.y = move.y;
 
-                    const result = minimax(testPieces, boardSize, depth - 1, false, alpha, beta);
+                    const result = minimax(testPieces, boardWidth, boardHeight, depth - 1, false, alpha, beta);
 
                     if (result.score > maxScore) {
                         maxScore = result.score;
@@ -902,7 +909,7 @@
             } else {
                 // Player turn (chameleon)
                 let minScore = Infinity;
-                const chameleonMoves = getPieceMoves(chameleon, pieces, boardSize);
+                const chameleonMoves = getPieceMoves(chameleon, pieces, boardWidth, boardHeight);
 
                 if (chameleonMoves.length === 0) {
                     return { score: evaluateBoard(pieces) };
@@ -926,7 +933,7 @@
                         testChameleon.y = move.y;
                     }
 
-                    const result = minimax(testPieces, boardSize, depth - 1, true, alpha, beta);
+                    const result = minimax(testPieces, boardWidth, boardHeight, depth - 1, true, alpha, beta);
                     minScore = Math.min(minScore, result.score);
 
                     beta = Math.min(beta, minScore);
@@ -937,10 +944,11 @@
             }
         }
 
-        function smartAI(pieces, boardSize) {
+        function smartAI(pieces, boardWidth, boardHeight) {
             // Smart AI: Use minimax with alpha-beta pruning
-            const depth = boardSize <= 5 ? 3 : 2; // Adjust depth based on board size
-            const result = minimax(pieces, boardSize, depth, true);
+            const maxDim = Math.max(boardWidth, boardHeight);
+            const depth = maxDim <= 5 ? 3 : 2; // Adjust depth based on board size
+            const result = minimax(pieces, boardWidth, boardHeight, depth, true);
             return result.move;
         }
 
@@ -959,13 +967,13 @@
 
             // Calculate move (with delay for UX)
             setTimeout(() => {
-                const enemyMoveData = smartAI(board.pieces, board.size);
+                const enemyMoveData = smartAI(board.pieces, board.width, board.height);
 
                 if (!enemyMoveData) {
                     // No moves available - player wins
                     thinking = false;
                     isEnemyTurn = false;
-                    if (isKingInCheck(board.pieces, board.size)) {
+                    if (isKingInCheck(board.pieces, board.width, board.height)) {
                         winLevel();
                     }
                     return;
@@ -1014,7 +1022,8 @@
             const level = LEVELS[levelIndex];
 
             board = {
-                size: level.boardSize,
+                width: level.boardWidth,
+                height: level.boardHeight,
                 pieces: JSON.parse(JSON.stringify(level.pieces)),
                 maxMoves: level.moves,
                 moveCount: 0
@@ -1069,7 +1078,7 @@
 
             // Check win/lose conditions, then trigger enemy move
             setTimeout(() => {
-                if (isCheckmate(board.pieces, board.size)) {
+                if (isCheckmate(board.pieces, board.width, board.height)) {
                     winLevel();
                 } else if (board.moveCount >= board.maxMoves) {
                     loseLevel("Out of moves!");
@@ -1259,14 +1268,15 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            const size = board.size;
-            const tileSize = Math.min(canvas.width / size, canvas.height / size);
-            const offsetX = (canvas.width - size * tileSize) / 2;
-            const offsetY = (canvas.height - size * tileSize) / 2;
+            const boardWidth = board.width;
+            const boardHeight = board.height;
+            const tileSize = Math.min(canvas.width / boardWidth, canvas.height / boardHeight);
+            const offsetX = (canvas.width - boardWidth * tileSize) / 2;
+            const offsetY = (canvas.height - boardHeight * tileSize) / 2;
 
             // Draw board
-            for (let y = 0; y < size; y++) {
-                for (let x = 0; x < size; x++) {
+            for (let y = 0; y < boardHeight; y++) {
+                for (let x = 0; x < boardWidth; x++) {
                     ctx.fillStyle = (x + y) % 2 === 0 ? TILE_COLOR_1 : TILE_COLOR_2;
                     ctx.fillRect(offsetX + x * tileSize, offsetY + y * tileSize, tileSize, tileSize);
                 }
@@ -1282,7 +1292,7 @@
                     tileSize
                 );
 
-                const moves = getPieceMoves(selectedPiece, board.pieces, board.size);
+                const moves = getLegalMoves(selectedPiece, board.pieces, board.width, board.height);
                 for (const move of moves) {
                     ctx.fillStyle = move.capture ? CAPTURE_COLOR : MOVE_COLOR;
                     ctx.beginPath();
@@ -1357,15 +1367,16 @@
             const x = clientX - rect.left;
             const y = clientY - rect.top;
 
-            const size = board.size;
-            const tileSize = Math.min(canvas.width / size, canvas.height / size);
-            const offsetX = (canvas.width - size * tileSize) / 2;
-            const offsetY = (canvas.height - size * tileSize) / 2;
+            const boardWidth = board.width;
+            const boardHeight = board.height;
+            const tileSize = Math.min(canvas.width / boardWidth, canvas.height / boardHeight);
+            const offsetX = (canvas.width - boardWidth * tileSize) / 2;
+            const offsetY = (canvas.height - boardHeight * tileSize) / 2;
 
             const tileX = Math.floor((x - offsetX) / tileSize);
             const tileY = Math.floor((y - offsetY) / tileSize);
 
-            if (tileX >= 0 && tileX < size && tileY >= 0 && tileY < size) {
+            if (tileX >= 0 && tileX < boardWidth && tileY >= 0 && tileY < boardHeight) {
                 return { x: tileX, y: tileY };
             }
             return null;
@@ -1415,7 +1426,7 @@
             const pos = getTilePosition(e.clientX, e.clientY);
 
             if (selectedPiece && pos) {
-                const moves = getPieceMoves(selectedPiece, board.pieces, board.size);
+                const moves = getLegalMoves(selectedPiece, board.pieces, board.width, board.height);
                 const validMove = moves.find(m => m.x === pos.x && m.y === pos.y);
 
                 if (validMove) {
@@ -1443,8 +1454,11 @@
         document.getElementById('undo-btn').addEventListener('click', undoMove);
         document.getElementById('help-btn').addEventListener('click', showHelp);
 
-        // Initialize
-        showMenu();
+        // Initialize - Load custom puzzles then show menu
+        (async function init() {
+            await loadCustomPuzzles();
+            showMenu();
+        })();
     </script>
 </body>
 </html>

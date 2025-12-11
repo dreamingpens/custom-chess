@@ -59,13 +59,17 @@ The chameleon's eyes always help you identify which piece is the disguised chame
 ```
 chess/
 ├── index.html              # Main game file (standalone)
-├── sounds/                 # Sound effect files
-│   ├── click.ogg          # Click/move sound
-│   ├── eat.ogg            # Capture sound
-│   ├── win.ogg            # Victory sound
-│   └── lose.ogg           # Defeat sound
-├── IMPLEMENTATION_PLAN.md  # Development plan document
-└── README.md              # This file
+├── admin.html             # Puzzle creator/editor
+├── move-puzzles.js        # Helper script to move puzzles from Downloads
+├── sounds/                # Sound effect files
+│   ├── click.ogg         # Click/move sound
+│   ├── eat.ogg           # Capture sound
+│   ├── win.ogg           # Victory sound
+│   └── lose.ogg          # Defeat sound
+├── puzzles/              # Custom puzzle files (JSON)
+│   └── README.md         # Puzzle format documentation
+├── IMPLEMENTATION_PLAN.md # Development plan document
+└── README.md             # This file
 ```
 
 ## Technical Details
@@ -115,11 +119,27 @@ Requires a browser that supports:
 4. **Watch the Eyes**: The chameleon's eyes will always help you identify which piece it has become
 5. **Don't Rush**: Use the UNDO button to experiment with different strategies
 
+## Puzzle Creator
+
+Create custom chess puzzles using the visual editor:
+
+1. Open `admin.html` in your browser
+2. Design your puzzle by placing pieces on the board
+3. Configure board size (can be non-symmetrical, e.g., 5×8)
+4. Set puzzle details (title, description, max moves)
+5. Export as JSON to Downloads folder
+6. Move to puzzles directory:
+   ```bash
+   node move-puzzles.js <filename>
+   ```
+
+See `puzzles/README.md` for more details on the puzzle format.
+
 ## Future Enhancements
 
 Potential additions:
 - More levels with increasing difficulty
-- Custom level editor
+- Import custom puzzles from JSON files
 - Hints system
 - Move counter and star rating
 - Animation improvements
